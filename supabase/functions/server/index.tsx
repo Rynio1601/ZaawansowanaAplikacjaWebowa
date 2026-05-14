@@ -515,4 +515,190 @@ app.get("/make-server-e73d1e02/dashboard/stats", async (c) => {
   }
 });
 
+// ============ POWIADOMIENIA EMAIL ============
+
+// Funkcja pomocnicza do wysyłania emaili
+// W środowisku produkcyjnym można zintegrować z Resend, SendGrid lub innym serwisem email
+async function sendEmail(to: string, subject: string, html: string) {
+  console.log(`[EMAIL] Wysyłanie do: ${to}`);
+  console.log(`[EMAIL] Temat: ${subject}`);
+  console.log(`[EMAIL] Treść: ${html.substring(0, 100)}...`);
+
+  // W środowisku produkcyjnym tutaj byłoby wywołanie API serwisu email
+  // Przykład z Resend:
+  // const resend = new Resend(Deno.env.get('RESEND_API_KEY'));
+  // await resend.emails.send({ from: 'TrainerPro <noreply@trainerpro.pl>', to, subject, html });
+
+  // Na razie tylko logujemy
+  return { success: true, message: 'Email zalogowany (produkcyjnie: wysłany)' };
+}
+
+// Wyślij przypomnienie o sesji
+app.post("/make-server-e73d1e02/notifications/session-reminder", async (c) => {
+  try {
+    const { error, userId } = await verifyUser(c.req.header('Authorization'));
+    if (error) return c.json({ error }, 401);
+
+    const { sessionId, clientEmail, clientName, sessionDate, sessionTime, sessionType } = await c.req.json();
+
+    if (!clientEmail || !clientName || !sessionDate || !sessionTime) {
+      return c.json({ error: 'Brak wymaganych danych' }, 400);
+    }
+
+    const subject = 'Przypomnienie o nadchodzącej sesji treningowej';
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #2563EB;">Przypomnienie o sesji treningowej</h2>
+        <p>Cześć ${clientName}!</p>
+        <p>Przypominamy o Twojej nadchodzącej sesji treningowej:</p>
+        <div style="background: #F1F5F9; padding: 20px; border-radius: 8px; margin: 20px 0;">
+          <p style="margin: 5px 0;"><strong>Data:</strong> ${sessionDate}</p>
+          <p style="margin: 5px 0;"><strong>Godzina:</strong> ${sessionTime}</p>
+          <p style="margin: 5px 0;"><strong>Typ:</strong> ${sessionType || 'Trening personalny'}</p>
+        </div>
+        <p>Do zobaczenia na treningu!</p>
+        <p style="color: #64748B; font-size: 12px; margin-top: 30px;">
+          TrainerPro - System zarządzania dla trenerów personalnych
+        </p>
+      </div>
+    `;
+
+    const result = await sendEmail(clientEmail, subject, html);
+
+    // Zapisz historię powiadomienia
+    const notificationId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    await kv.set(`notification:${userId}:${notificationId}`, {
+      id: notificationId,
+      type: 'session-reminder',
+      sessionId,
+      clientEmail,
+      sentAt: new Date().toISOString(),
+      status: 'sent',
+    });
+
+    return c.json({ success: true, message: 'Przypomnienie wysłane', result });
+  } catch (err) {
+    console.error('Send session reminder error:', err);
+    return c.json({ error: `Błąd wysyłania przypomnienia: ${err}` }, 500);
+  }
+});
+
+// Wyślij przypomnienie o płatności
+app.post("/make-server-e73d1e02/notifications/payment-reminder", async (c) => {
+  try {
+    const { error, userId } = await verifyUser(c.req.header('Authorization'));
+    if (error) return c.json({ error }, 401);
+
+    const { clientEmail, clientName, amount, dueDate, invoiceNumber } = await c.req.json();
+
+    if (!clientEmail || !clientName || !amount) {
+      return c.json({ error: 'Brak wymaganych danych' }, 400);
+    }
+
+    const subject = 'Przypomnienie o płatności';
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #EF4444;">Przypomnienie o płatności</h2>
+        <p>Cześć ${clientName}!</p>
+        <p>Przypominamy o nieopłaconej fakturze:</p>
+        <div style="background: #FEF2F2; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #EF4444;">
+          <p style="margin: 5px 0;"><strong>Kwota:</strong> ${amount} zł</p>
+          ${dueDate ? `<p style="margin: 5px 0;"><strong>Termin płatności:</strong> ${dueDate}</p>` : ''}
+          ${invoiceNumber ? `<p style="margin: 5px 0;"><strong>Numer faktury:</strong> ${invoiceNumber}</p>` : ''}
+        </div>
+        <p>Prosimy o dokonanie płatności w możliwie najszybszym terminie.</p>
+        <p>W razie pytań, chętnie pomożemy!</p>
+        <p style="color: #64748B; font-size: 12px; margin-top: 30px;">
+          TrainerPro - System zarządzania dla trenerów personalnych
+        </p>
+      </div>
+    `;
+
+    const result = await sendEmail(clientEmail, subject, html);
+
+    // Zapisz historię powiadomienia
+    const notificationId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    await kv.set(`notification:${userId}:${notificationId}`, {
+      id: notificationId,
+      type: 'payment-reminder',
+      clientEmail,
+      amount,
+      sentAt: new Date().toISOString(),
+      status: 'sent',
+    });
+
+    return c.json({ success: true, message: 'Przypomnienie o płatności wysłane', result });
+  } catch (err) {
+    console.error('Send payment reminder error:', err);
+    return c.json({ error: `Błąd wysyłania przypomnienia o płatności: ${err}` }, 500);
+  }
+});
+
+// Wyślij wiadomość powitalną do nowego klienta
+app.post("/make-server-e73d1e02/notifications/welcome", async (c) => {
+  try {
+    const { error, userId } = await verifyUser(c.req.header('Authorization'));
+    if (error) return c.json({ error }, 401);
+
+    const { clientEmail, clientName, trainerName } = await c.req.json();
+
+    if (!clientEmail || !clientName) {
+      return c.json({ error: 'Brak wymaganych danych' }, 400);
+    }
+
+    const subject = `Witaj w ${trainerName ? `zespole ${trainerName}` : 'TrainerPro'}!`;
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #10B981;">Witaj, ${clientName}!</h2>
+        <p>Cieszymy się, że dołączasz do nas!</p>
+        <p>Od teraz wspólnie będziemy pracować nad osiągnięciem Twoich celów treningowych.</p>
+        <div style="background: #F0FDF4; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #10B981;">
+          <h3 style="margin-top: 0;">Co dalej?</h3>
+          <ul style="padding-left: 20px;">
+            <li>Skontaktujemy się z Tobą, aby umówić pierwszą sesję</li>
+            <li>Przygotujemy dla Ciebie spersonalizowany plan treningowy</li>
+            <li>Będziemy monitorować Twoje postępy</li>
+          </ul>
+        </div>
+        <p>Masz pytania? Śmiało pisz - chętnie pomożemy!</p>
+        <p style="margin-top: 30px;">Do zobaczenia na treningu! 💪</p>
+        <p style="color: #64748B; font-size: 12px; margin-top: 30px;">
+          ${trainerName || 'TrainerPro'}
+        </p>
+      </div>
+    `;
+
+    const result = await sendEmail(clientEmail, subject, html);
+
+    // Zapisz historię powiadomienia
+    const notificationId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    await kv.set(`notification:${userId}:${notificationId}`, {
+      id: notificationId,
+      type: 'welcome',
+      clientEmail,
+      sentAt: new Date().toISOString(),
+      status: 'sent',
+    });
+
+    return c.json({ success: true, message: 'Wiadomość powitalna wysłana', result });
+  } catch (err) {
+    console.error('Send welcome email error:', err);
+    return c.json({ error: `Błąd wysyłania wiadomości powitalnej: ${err}` }, 500);
+  }
+});
+
+// Pobierz historię powiadomień
+app.get("/make-server-e73d1e02/notifications", async (c) => {
+  try {
+    const { error, userId } = await verifyUser(c.req.header('Authorization'));
+    if (error) return c.json({ error }, 401);
+
+    const notifications = await kv.getByPrefix(`notification:${userId}:`);
+    return c.json({ notifications });
+  } catch (err) {
+    console.error('Get notifications error:', err);
+    return c.json({ error: `Błąd pobierania powiadomień: ${err}` }, 500);
+  }
+});
+
 Deno.serve(app.fetch);

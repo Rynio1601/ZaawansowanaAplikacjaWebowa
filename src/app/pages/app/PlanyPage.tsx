@@ -3,6 +3,8 @@ import { Plus, Search, Copy, Send, Edit2, Dumbbell, Clock, Users, ChevronRight, 
 import { useAuth } from '../../contexts/AuthContext';
 import { getPlans, createPlan, deletePlan } from '../../utils/api';
 import { toast } from 'sonner';
+import ExportButton from '../../components/ExportButton';
+import { exportPlansToFile } from '../../../utils/exportUtils';
 
 const categoryColors: Record<string, string> = {
   'Redukcja': '#EF4444',
@@ -101,10 +103,34 @@ export function PlanyPage() {
           <h1 className="text-white" style={{ fontSize: '1.4rem', fontWeight: 700 }}>Plany treningowe</h1>
           <p className="text-sm mt-1" style={{ color: '#475569' }}>{plans.length} planów · {plans.reduce((a, p) => a + p.clients, 0)} przypisanych klientów</p>
         </div>
-        <button onClick={() => setShowModal(true)} className="flex items-center gap-2 px-4 py-2 rounded-xl text-white text-sm"
-          style={{ background: 'linear-gradient(135deg, #2563EB, #06B6D4)', fontWeight: 600 }}>
-          <Plus size={16} /> Nowy plan
-        </button>
+        <div className="flex items-center gap-3">
+          <ExportButton
+            onExportPDF={() => {
+              const exportData = filtered.map(p => ({
+                name: p.name,
+                clientName: p.clients > 0 ? `${p.clients} klientów` : '',
+                duration: p.duration,
+                workouts: p.sessionsPerWeek ? [{ name: `${p.sessionsPerWeek}x/tydzień` }] : [],
+                status: 'active',
+              }));
+              exportPlansToFile(exportData, 'pdf');
+            }}
+            onExportExcel={() => {
+              const exportData = filtered.map(p => ({
+                name: p.name,
+                clientName: p.clients > 0 ? `${p.clients} klientów` : '',
+                duration: p.duration,
+                workouts: p.sessionsPerWeek ? [{ name: `${p.sessionsPerWeek}x/tydzień` }] : [],
+                status: 'active',
+              }));
+              exportPlansToFile(exportData, 'excel');
+            }}
+          />
+          <button onClick={() => setShowModal(true)} className="flex items-center gap-2 px-4 py-2 rounded-xl text-white text-sm"
+            style={{ background: 'linear-gradient(135deg, #2563EB, #06B6D4)', fontWeight: 600 }}>
+            <Plus size={16} /> Nowy plan
+          </button>
+        </div>
       </div>
 
       {/* Search */}

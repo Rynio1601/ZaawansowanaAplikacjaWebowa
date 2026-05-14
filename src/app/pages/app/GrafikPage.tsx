@@ -1,8 +1,11 @@
 import { useState, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, Plus, Clock, Users, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, Clock, Users, X, Filter, Search, Calendar as CalendarIcon, Grid } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { getSessions, createSession, updateSession, deleteSession } from '../../utils/api';
 import { toast } from 'sonner';
+import ExportButton from '../../components/ExportButton';
+import { exportScheduleToFile } from '../../../utils/exportUtils';
+import CalendarView from '../../components/CalendarView';
 
 const HOURS = [8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20];
 const DAYS = ['Pon', 'Wt', 'Śr', 'Czw', 'Pt', 'Sob', 'Nd'];
@@ -14,6 +17,10 @@ export function GrafikPage() {
   const [selected, setSelected] = useState<any>(null);
   const [showAdd, setShowAdd] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [searchClient, setSearchClient] = useState('');
+  const [filterType, setFilterType] = useState<string>('all');
+  const [showFilters, setShowFilters] = useState(false);
+  const [viewMode, setViewMode] = useState<'grid' | 'calendar'>('grid');
   const todayIdx = 2; // Wednesday (index 2)
 
   useEffect(() => {
@@ -61,6 +68,21 @@ export function GrafikPage() {
     }
   };
 
+  const filteredSessions = sessions.filter(s => {
+    const matchClient = !searchClient || s.client?.toLowerCase().includes(searchClient.toLowerCase());
+    const matchType = filterType === 'all' || s.type === filterType;
+    return matchClient && matchType;
+  });
+
+  const exportSessions = sessions.map(s => ({
+    date: DATES[s.day],
+    time: `${s.hour}:00`,
+    clientName: s.client,
+    type: s.type,
+    status: 'scheduled',
+    notes: s.notes || '',
+  }));
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -80,15 +102,45 @@ export function GrafikPage() {
           <p className="text-sm mt-1" style={{ color: '#475569' }}>3–9 marca 2026 · {sessions.length} sesji w tym tygodniu</p>
         </div>
         <div className="flex items-center gap-2">
-          <button className="p-2 rounded-xl" style={{ background: '#0A0F1A', border: '1px solid rgba(255,255,255,0.06)', color: '#475569' }}>
-            <ChevronLeft size={18} />
-          </button>
-          <button className="px-3 py-2 rounded-xl text-sm" style={{ background: '#0A0F1A', border: '1px solid rgba(255,255,255,0.06)', color: '#94A3B8' }}>
-            Dziś
-          </button>
-          <button className="p-2 rounded-xl" style={{ background: '#0A0F1A', border: '1px solid rgba(255,255,255,0.06)', color: '#475569' }}>
-            <ChevronRight size={18} />
-          </button>
+          <div className="flex items-center gap-1 p-1 rounded-lg" style={{ background: '#0A0F1A', border: '1px solid rgba(255,255,255,0.06)' }}>
+            <button
+              onClick={() => setViewMode('grid')}
+              className="p-2 rounded-lg transition-all"
+              style={{
+                background: viewMode === 'grid' ? 'rgba(37,99,235,0.15)' : 'transparent',
+                color: viewMode === 'grid' ? '#60A5FA' : '#475569',
+              }}
+            >
+              <Grid size={16} />
+            </button>
+            <button
+              onClick={() => setViewMode('calendar')}
+              className="p-2 rounded-lg transition-all"
+              style={{
+                background: viewMode === 'calendar' ? 'rgba(37,99,235,0.15)' : 'transparent',
+                color: viewMode === 'calendar' ? '#60A5FA' : '#475569',
+              }}
+            >
+              <CalendarIcon size={16} />
+            </button>
+          </div>
+          <ExportButton
+            onExportPDF={() => exportScheduleToFile(exportSessions, 'pdf')}
+            onExportExcel={() => exportScheduleToFile(exportSessions, 'excel')}
+          />
+          {viewMode === 'grid' && (
+            <>
+              <button className="p-2 rounded-xl" style={{ background: '#0A0F1A', border: '1px solid rgba(255,255,255,0.06)', color: '#475569' }}>
+                <ChevronLeft size={18} />
+              </button>
+              <button className="px-3 py-2 rounded-xl text-sm" style={{ background: '#0A0F1A', border: '1px solid rgba(255,255,255,0.06)', color: '#94A3B8' }}>
+                Dziś
+              </button>
+              <button className="p-2 rounded-xl" style={{ background: '#0A0F1A', border: '1px solid rgba(255,255,255,0.06)', color: '#475569' }}>
+                <ChevronRight size={18} />
+              </button>
+            </>
+          )}
           <button onClick={() => setShowAdd(true)} className="flex items-center gap-2 px-4 py-2 rounded-xl text-white text-sm ml-2"
             style={{ background: 'linear-gradient(135deg, #2563EB, #06B6D4)', fontWeight: 600 }}>
             <Plus size={16} /> Dodaj sesję
@@ -96,8 +148,78 @@ export function GrafikPage() {
         </div>
       </div>
 
-      {/* Summary row */}
-      <div className="grid grid-cols-3 gap-4 mb-5">
+      {/* Filters */}
+      <div className="space-y-3 mb-5">
+        <div className="flex gap-3">
+          <div className="flex items-center gap-2 px-4 py-2 rounded-xl flex-1" style={{ background: '#0A0F1A', border: '1px solid rgba(255,255,255,0.06)' }}>
+            <Search size={16} style={{ color: '#475569' }} />
+            <input
+              value={searchClient}
+              onChange={e => setSearchClient(e.target.value)}
+              placeholder="Szukaj klienta..."
+              className="bg-transparent text-sm outline-none w-full"
+              style={{ color: '#94A3B8' }}
+            />
+          </div>
+          <button
+            onClick={() => setShowFilters(!showFilters)}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm transition-all"
+            style={{
+              background: showFilters ? 'rgba(37,99,235,0.15)' : '#0A0F1A',
+              border: showFilters ? '1px solid rgba(37,99,235,0.4)' : '1px solid rgba(255,255,255,0.06)',
+              color: showFilters ? '#60A5FA' : '#475569',
+              fontWeight: showFilters ? 600 : 400,
+            }}
+          >
+            <Filter size={16} />
+            Filtry
+          </button>
+        </div>
+
+        {showFilters && (
+          <div className="p-4 rounded-xl" style={{ background: '#0A0F1A', border: '1px solid rgba(255,255,255,0.06)' }}>
+            <label className="block text-xs mb-2" style={{ color: '#64748B' }}>Typ treningu:</label>
+            <div className="flex flex-wrap gap-2">
+              {['all', 'Trening siłowy', 'Cardio', 'Funkcjonalny', 'Stretching'].map((type) => (
+                <button
+                  key={type}
+                  onClick={() => setFilterType(type)}
+                  className="px-3 py-1.5 rounded-lg text-xs transition-all"
+                  style={{
+                    background: filterType === type ? 'rgba(37,99,235,0.15)' : '#0D1525',
+                    border: filterType === type ? '1px solid rgba(37,99,235,0.4)' : '1px solid rgba(255,255,255,0.06)',
+                    color: filterType === type ? '#60A5FA' : '#475569',
+                    fontWeight: filterType === type ? 600 : 400,
+                  }}
+                >
+                  {type === 'all' ? 'Wszystkie' : type}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {viewMode === 'calendar' ? (
+        <CalendarView
+          sessions={filteredSessions.map(s => ({
+            id: s.id,
+            date: new Date(2026, 2, s.day + 3),
+            time: `${s.hour}:00`,
+            client: s.client,
+            type: s.type,
+            color: s.color,
+          }))}
+          onDateSelect={(date) => console.log('Selected date:', date)}
+          onSessionClick={(session) => {
+            const originalSession = sessions.find(s => s.id === session.id);
+            if (originalSession) setSelected(originalSession);
+          }}
+        />
+      ) : (
+        <>
+          {/* Summary row */}
+          <div className="grid grid-cols-3 gap-4 mb-5">
         {[
           { label: 'Sesje w tygodniu', value: sessions.length.toString(), color: '#2563EB' },
           { label: 'Godziny treningów', value: `${sessions.reduce((a, s) => a + s.duration, 0) / 60}h`, color: '#06B6D4' },
@@ -137,7 +259,7 @@ export function GrafikPage() {
                 <span className="text-xs" style={{ color: '#334155' }}>{hour}:00</span>
               </div>
               {DAYS.map((_, dayIdx) => {
-                const daySessions = sessions.filter(s => s.day === dayIdx && s.hour === hour);
+                const daySessions = filteredSessions.filter(s => s.day === dayIdx && s.hour === hour);
                 return (
                   <div key={dayIdx} className="relative p-1" style={{ borderLeft: '1px solid rgba(255,255,255,0.04)', background: dayIdx === todayIdx ? 'rgba(37,99,235,0.02)' : 'transparent' }}>
                     {daySessions.map(session => (
@@ -156,6 +278,8 @@ export function GrafikPage() {
           ))}
         </div>
       </div>
+        </>
+      )}
 
       {/* Session detail modal */}
       {selected && (

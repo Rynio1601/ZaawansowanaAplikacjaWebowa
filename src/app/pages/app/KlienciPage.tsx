@@ -3,6 +3,8 @@ import { Plus, Search, Filter, MoreVertical, Phone, Mail, Calendar, TrendingUp, 
 import { useAuth } from '../../contexts/AuthContext';
 import { getClients, createClient, updateClient, deleteClient } from '../../utils/api';
 import { toast } from 'sonner';
+import ExportButton from '../../components/ExportButton';
+import { exportClientsToFile } from '../../../utils/exportUtils';
 
 const statusLabels: Record<string, { label: string; color: string; bg: string }> = {
   active: { label: 'Aktywny', color: '#34D399', bg: 'rgba(16,185,129,0.1)' },
@@ -19,6 +21,10 @@ export function KlienciPage() {
   const [clients, setClients] = useState<any[]>([]);
   const [newClient, setNewClient] = useState({ name: '', email: '', phone: '', goal: '', plan: '' });
   const [loading, setLoading] = useState(true);
+  const [sortBy, setSortBy] = useState<'name' | 'progress' | 'sessions'>('name');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+  const [paymentFilter, setPaymentFilter] = useState<'all' | 'paid' | 'unpaid'>('all');
 
   // Pobierz klientów przy załadowaniu strony
   useEffect(() => {
@@ -49,11 +55,28 @@ export function KlienciPage() {
     }
   };
 
-  const filtered = clients.filter(c => {
-    const matchSearch = c.name?.toLowerCase().includes(search.toLowerCase()) || c.email?.toLowerCase().includes(search.toLowerCase());
-    const matchFilter = filter === 'all' || c.status === filter;
-    return matchSearch && matchFilter;
-  });
+  const filtered = clients
+    .filter(c => {
+      const matchSearch = c.name?.toLowerCase().includes(search.toLowerCase()) ||
+                         c.email?.toLowerCase().includes(search.toLowerCase()) ||
+                         c.phone?.toLowerCase().includes(search.toLowerCase());
+      const matchFilter = filter === 'all' || c.status === filter;
+      const matchPayment = paymentFilter === 'all' ||
+                          (paymentFilter === 'paid' && c.paid) ||
+                          (paymentFilter === 'unpaid' && !c.paid);
+      return matchSearch && matchFilter && matchPayment;
+    })
+    .sort((a, b) => {
+      let comparison = 0;
+      if (sortBy === 'name') {
+        comparison = a.name.localeCompare(b.name);
+      } else if (sortBy === 'progress') {
+        comparison = (a.progress || 0) - (b.progress || 0);
+      } else if (sortBy === 'sessions') {
+        comparison = (a.sessions || 0) - (b.sessions || 0);
+      }
+      return sortOrder === 'asc' ? comparison : -comparison;
+    });
 
   const addClient = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -109,23 +132,46 @@ export function KlienciPage() {
           <h1 className="text-white" style={{ fontSize: '1.4rem', fontWeight: 700 }}>Klienci</h1>
           <p className="text-sm mt-1" style={{ color: '#475569' }}>{clients.length} klientów · {clients.filter(c => c.status === 'active').length} aktywnych</p>
         </div>
-        <button onClick={() => setShowModal(true)} className="flex items-center gap-2 px-4 py-2 rounded-xl text-white text-sm"
-          style={{ background: 'linear-gradient(135deg, #2563EB, #06B6D4)', fontWeight: 600 }}>
-          <Plus size={16} /> Dodaj klienta
-        </button>
+        <div className="flex items-center gap-3">
+          <ExportButton
+            onExportPDF={() => exportClientsToFile(filtered, 'pdf')}
+            onExportExcel={() => exportClientsToFile(filtered, 'excel')}
+          />
+          <button onClick={() => setShowModal(true)} className="flex items-center gap-2 px-4 py-2 rounded-xl text-white text-sm"
+            style={{ background: 'linear-gradient(135deg, #2563EB, #06B6D4)', fontWeight: 600 }}>
+            <Plus size={16} /> Dodaj klienta
+          </button>
+        </div>
       </div>
 
       {/* Filters */}
-      <div className="flex flex-wrap gap-3 mb-5">
-        <div className="flex items-center gap-2 px-4 py-2 rounded-xl flex-1 min-w-48" style={{ background: '#0A0F1A', border: '1px solid rgba(255,255,255,0.06)' }}>
-          <Search size={16} style={{ color: '#475569' }} />
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Szukaj klienta..."
-            className="bg-transparent text-sm outline-none w-full" style={{ color: '#94A3B8' }} />
+      <div className="space-y-3 mb-5">
+        <div className="flex flex-wrap gap-3">
+          <div className="flex items-center gap-2 px-4 py-2 rounded-xl flex-1 min-w-48" style={{ background: '#0A0F1A', border: '1px solid rgba(255,255,255,0.06)' }}>
+            <Search size={16} style={{ color: '#475569' }} />
+            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Szukaj klienta (imię, email, telefon)..."
+              className="bg-transparent text-sm outline-none w-full" style={{ color: '#94A3B8' }} />
+          </div>
+          <button
+            onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm transition-all"
+            style={{
+              background: showAdvancedFilters ? 'rgba(37,99,235,0.15)' : '#0A0F1A',
+              border: showAdvancedFilters ? '1px solid rgba(37,99,235,0.4)' : '1px solid rgba(255,255,255,0.06)',
+              color: showAdvancedFilters ? '#60A5FA' : '#475569',
+              fontWeight: showAdvancedFilters ? 600 : 400,
+            }}
+          >
+            <Filter size={16} />
+            Zaawansowane
+          </button>
         </div>
-        <div className="flex items-center gap-2">
+
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-xs" style={{ color: '#475569' }}>Status:</span>
           {[['all', 'Wszyscy'], ['active', 'Aktywni'], ['trial', 'Trial'], ['inactive', 'Nieaktywni']].map(([val, label]) => (
             <button key={val} onClick={() => setFilter(val)}
-              className="px-3 py-2 rounded-xl text-sm transition-all"
+              className="px-3 py-1.5 rounded-lg text-xs transition-all"
               style={{
                 background: filter === val ? 'rgba(37,99,235,0.15)' : '#0A0F1A',
                 border: filter === val ? '1px solid rgba(37,99,235,0.4)' : '1px solid rgba(255,255,255,0.06)',
@@ -136,6 +182,64 @@ export function KlienciPage() {
             </button>
           ))}
         </div>
+
+        {showAdvancedFilters && (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 p-4 rounded-xl" style={{ background: '#0A0F1A', border: '1px solid rgba(255,255,255,0.06)' }}>
+            <div>
+              <label className="block text-xs mb-2" style={{ color: '#64748B' }}>Płatności:</label>
+              <div className="flex gap-2">
+                {[['all', 'Wszystkie'], ['paid', 'Opłacone'], ['unpaid', 'Zaległe']].map(([val, label]) => (
+                  <button key={val} onClick={() => setPaymentFilter(val as any)}
+                    className="px-3 py-1.5 rounded-lg text-xs transition-all flex-1"
+                    style={{
+                      background: paymentFilter === val ? 'rgba(37,99,235,0.15)' : '#0D1525',
+                      border: paymentFilter === val ? '1px solid rgba(37,99,235,0.4)' : '1px solid rgba(255,255,255,0.06)',
+                      color: paymentFilter === val ? '#60A5FA' : '#475569',
+                      fontWeight: paymentFilter === val ? 600 : 400,
+                    }}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs mb-2" style={{ color: '#64748B' }}>Sortuj według:</label>
+              <div className="flex gap-2">
+                {[['name', 'Nazwa'], ['progress', 'Postęp'], ['sessions', 'Sesje']].map(([val, label]) => (
+                  <button key={val} onClick={() => setSortBy(val as any)}
+                    className="px-3 py-1.5 rounded-lg text-xs transition-all flex-1"
+                    style={{
+                      background: sortBy === val ? 'rgba(37,99,235,0.15)' : '#0D1525',
+                      border: sortBy === val ? '1px solid rgba(37,99,235,0.4)' : '1px solid rgba(255,255,255,0.06)',
+                      color: sortBy === val ? '#60A5FA' : '#475569',
+                      fontWeight: sortBy === val ? 600 : 400,
+                    }}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs mb-2" style={{ color: '#64748B' }}>Kolejność:</label>
+              <div className="flex gap-2">
+                {[['asc', 'Rosnąco'], ['desc', 'Malejąco']].map(([val, label]) => (
+                  <button key={val} onClick={() => setSortOrder(val as any)}
+                    className="px-3 py-1.5 rounded-lg text-xs transition-all flex-1"
+                    style={{
+                      background: sortOrder === val ? 'rgba(37,99,235,0.15)' : '#0D1525',
+                      border: sortOrder === val ? '1px solid rgba(37,99,235,0.4)' : '1px solid rgba(255,255,255,0.06)',
+                      color: sortOrder === val ? '#60A5FA' : '#475569',
+                      fontWeight: sortOrder === val ? 600 : 400,
+                    }}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Table */}
@@ -248,6 +352,13 @@ export function KlienciPage() {
             <div className="flex gap-2">
               <button className="flex-1 py-2.5 rounded-xl text-sm text-white" style={{ background: 'linear-gradient(135deg, #2563EB, #06B6D4)', fontWeight: 600 }}>Wyślij wiadomość</button>
               <button className="flex-1 py-2.5 rounded-xl text-sm" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: '#94A3B8' }}>Edytuj profil</button>
+              <button
+                onClick={() => handleDeleteClient(selected.id)}
+                className="py-2.5 px-4 rounded-xl text-sm"
+                style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', color: '#EF4444' }}
+              >
+                Usuń
+              </button>
             </div>
           </div>
         </div>

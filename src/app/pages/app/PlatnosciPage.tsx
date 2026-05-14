@@ -3,6 +3,8 @@ import { CreditCard, TrendingUp, AlertCircle, Check, X, Plus, Download, Clock } 
 import { useAuth } from '../../contexts/AuthContext';
 import { getPayments, addPayment } from '../../utils/api';
 import { toast } from 'sonner';
+import ExportButton from '../../components/ExportButton';
+import { exportPaymentsToFile } from '../../../utils/exportUtils';
 
 const statusConfig: Record<string, { label: string; color: string; bg: string; icon: React.FC<any> }> = {
   paid: { label: 'Opłacona', color: '#34D399', bg: 'rgba(16,185,129,0.1)', icon: Check },
@@ -58,10 +60,30 @@ export function PlatnosciPage() {
           <p className="text-sm mt-1" style={{ color: '#475569' }}>Zarządzaj subskrypcjami i fakturami</p>
         </div>
         <div className="flex gap-2">
-          <button className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm"
-            style={{ background: '#0A0F1A', border: '1px solid rgba(255,255,255,0.06)', color: '#94A3B8' }}>
-            <Download size={16} /> Eksportuj
-          </button>
+          <ExportButton
+            onExportPDF={() => {
+              const exportData = filtered.map(t => ({
+                date: t.date,
+                clientName: t.client,
+                amount: t.amount,
+                status: t.status,
+                method: t.method || 'card',
+                description: t.type,
+              }));
+              exportPaymentsToFile(exportData, 'pdf');
+            }}
+            onExportExcel={() => {
+              const exportData = filtered.map(t => ({
+                date: t.date,
+                clientName: t.client,
+                amount: t.amount,
+                status: t.status,
+                method: t.method || 'card',
+                description: t.type,
+              }));
+              exportPaymentsToFile(exportData, 'excel');
+            }}
+          />
           <button className="flex items-center gap-2 px-4 py-2 rounded-xl text-white text-sm"
             style={{ background: 'linear-gradient(135deg, #2563EB, #06B6D4)', fontWeight: 600 }}>
             <Plus size={16} /> Dodaj płatność

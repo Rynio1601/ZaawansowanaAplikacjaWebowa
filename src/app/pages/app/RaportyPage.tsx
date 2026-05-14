@@ -1,5 +1,8 @@
-import { AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend } from 'recharts';
-import { Download, TrendingUp, Users, CreditCard, Percent } from 'lucide-react';
+import { useState } from 'react';
+import { AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell, LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend } from 'recharts';
+import { Download, TrendingUp, Users, CreditCard, Percent, Calendar, Filter } from 'lucide-react';
+import ExportButton from '../../components/ExportButton';
+import { exportToPDF, exportToExcel } from '../../../utils/exportUtils';
 
 const mrrData = [
   { month: 'Wrz', mrr: 7200, new: 1200, churn: 300 },
@@ -28,6 +31,22 @@ const planDistribution = [
   { name: 'Rehabilitacja', value: 2, color: '#F59E0B' },
 ];
 
+const sessionsPerWeek = [
+  { week: 'Tydz 1', sessions: 24, completed: 22, cancelled: 2 },
+  { week: 'Tydz 2', sessions: 26, completed: 24, cancelled: 2 },
+  { week: 'Tydz 3', sessions: 28, completed: 26, cancelled: 2 },
+  { week: 'Tydz 4', sessions: 25, completed: 23, cancelled: 2 },
+];
+
+const clientSatisfaction = [
+  { month: 'Paź', score: 4.2 },
+  { month: 'Lis', score: 4.4 },
+  { month: 'Gru', score: 4.3 },
+  { month: 'Sty', score: 4.5 },
+  { month: 'Lut', score: 4.6 },
+  { month: 'Mar', score: 4.7 },
+];
+
 const kpis = [
   { label: 'MRR', value: '12 840 zł', change: '+18%', up: true, icon: CreditCard, color: '#10B981', desc: 'vs poprzedni miesiąc' },
   { label: 'Aktywni klienci', value: '32', change: '+4', up: true, icon: Users, color: '#2563EB', desc: 'ten miesiąc' },
@@ -52,6 +71,45 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 };
 
 export function RaportyPage() {
+  const [timeRange, setTimeRange] = useState<'7days' | '30days' | '3months' | '6months'>('6months');
+  const [showFilters, setShowFilters] = useState(false);
+
+  const handleExportPDF = () => {
+    const allData = [
+      ...kpis.map(k => ({ type: 'KPI', name: k.label, value: k.value, change: k.change })),
+      ...mrrData.map(m => ({ type: 'MRR', month: m.month, mrr: m.mrr, new: m.new, churn: m.churn })),
+    ];
+
+    exportToPDF({
+      filename: `raport_biznesowy_${new Date().toISOString().split('T')[0]}`,
+      title: 'Raport Biznesowy - TrainerPro',
+      columns: [
+        { header: 'Typ', key: 'type', width: 30 },
+        { header: 'Nazwa', key: 'name', width: 60 },
+        { header: 'Wartość', key: 'value', width: 40 },
+        { header: 'Zmiana', key: 'change', width: 30 },
+      ],
+      data: allData,
+      orientation: 'landscape',
+    });
+  };
+
+  const handleExportExcel = () => {
+    exportToExcel({
+      filename: `raport_biznesowy_${new Date().toISOString().split('T')[0]}`,
+      columns: [
+        { header: 'Typ', key: 'type' },
+        { header: 'Nazwa', key: 'name' },
+        { header: 'Wartość', key: 'value' },
+        { header: 'Zmiana', key: 'change' },
+      ],
+      data: [
+        ...kpis.map(k => ({ type: 'KPI', name: k.label, value: k.value, change: k.change })),
+        ...mrrData.map(m => ({ type: 'MRR', name: m.month, value: `${m.mrr} zł`, change: `+${m.new - m.churn}` })),
+      ],
+    });
+  };
+
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
@@ -59,11 +117,53 @@ export function RaportyPage() {
           <h1 className="text-white" style={{ fontSize: '1.4rem', fontWeight: 700 }}>Raporty biznesowe</h1>
           <p className="text-sm mt-1" style={{ color: '#475569' }}>Analityka i KPI Twojego biznesu trenerskiego</p>
         </div>
-        <button className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm"
-          style={{ background: '#0A0F1A', border: '1px solid rgba(255,255,255,0.06)', color: '#94A3B8' }}>
-          <Download size={16} /> Eksportuj CSV
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setShowFilters(!showFilters)}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm transition-all"
+            style={{
+              background: showFilters ? 'rgba(37,99,235,0.15)' : '#0A0F1A',
+              border: showFilters ? '1px solid rgba(37,99,235,0.4)' : '1px solid rgba(255,255,255,0.06)',
+              color: showFilters ? '#60A5FA' : '#94A3B8',
+            }}
+          >
+            <Filter size={16} />
+            Filtry
+          </button>
+          <ExportButton
+            onExportPDF={handleExportPDF}
+            onExportExcel={handleExportExcel}
+          />
+        </div>
       </div>
+
+      {showFilters && (
+        <div className="p-4 rounded-xl mb-5" style={{ background: '#0A0F1A', border: '1px solid rgba(255,255,255,0.06)' }}>
+          <label className="block text-xs mb-2" style={{ color: '#64748B' }}>Zakres czasowy:</label>
+          <div className="flex gap-2">
+            {[
+              ['7days', 'Ostatnie 7 dni'],
+              ['30days', 'Ostatnie 30 dni'],
+              ['3months', 'Ostatnie 3 miesiące'],
+              ['6months', 'Ostatnie 6 miesięcy'],
+            ].map(([val, label]) => (
+              <button
+                key={val}
+                onClick={() => setTimeRange(val as any)}
+                className="px-3 py-1.5 rounded-lg text-xs transition-all"
+                style={{
+                  background: timeRange === val ? 'rgba(37,99,235,0.15)' : '#0D1525',
+                  border: timeRange === val ? '1px solid rgba(37,99,235,0.4)' : '1px solid rgba(255,255,255,0.06)',
+                  color: timeRange === val ? '#60A5FA' : '#475569',
+                  fontWeight: timeRange === val ? 600 : 400,
+                }}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
@@ -155,6 +255,45 @@ export function RaportyPage() {
                 </div>
               ))}
             </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Additional Charts */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        {/* Sessions per week */}
+        <div className="p-5 rounded-2xl" style={{ background: '#0A0F1A', border: '1px solid rgba(255,255,255,0.06)' }}>
+          <p className="text-white mb-1" style={{ fontWeight: 600 }}>Sesje treningowe – Ostatni miesiąc</p>
+          <p className="text-xs mb-4" style={{ color: '#475569' }}>Zaplanowane vs Zrealizowane</p>
+          <ResponsiveContainer width="100%" height={200}>
+            <BarChart data={sessionsPerWeek}>
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
+              <XAxis dataKey="week" tick={{ fill: '#475569', fontSize: 11 }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fill: '#475569', fontSize: 11 }} axisLine={false} tickLine={false} />
+              <Tooltip content={<CustomTooltip />} />
+              <Bar dataKey="completed" name="Zrealizowane" fill="#10B981" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="cancelled" name="Anulowane" fill="#EF4444" radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+
+        {/* Client satisfaction */}
+        <div className="p-5 rounded-2xl" style={{ background: '#0A0F1A', border: '1px solid rgba(255,255,255,0.06)' }}>
+          <p className="text-white mb-1" style={{ fontWeight: 600 }}>Satysfakcja klientów</p>
+          <p className="text-xs mb-4" style={{ color: '#475569' }}>Średnia ocena (skala 1-5)</p>
+          <ResponsiveContainer width="100%" height={200}>
+            <LineChart data={clientSatisfaction}>
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
+              <XAxis dataKey="month" tick={{ fill: '#475569', fontSize: 11 }} axisLine={false} tickLine={false} />
+              <YAxis domain={[0, 5]} tick={{ fill: '#475569', fontSize: 11 }} axisLine={false} tickLine={false} />
+              <Tooltip content={<CustomTooltip />} />
+              <Line type="monotone" dataKey="score" name="Ocena" stroke="#8B5CF6" strokeWidth={3} dot={{ fill: '#8B5CF6', r: 4 }} />
+            </LineChart>
+          </ResponsiveContainer>
+          <div className="mt-4 p-3 rounded-xl" style={{ background: 'rgba(139,92,246,0.1)', border: '1px solid rgba(139,92,246,0.2)' }}>
+            <p className="text-sm" style={{ color: '#A78BFA' }}>
+              Średnia ocena wzrosła o <strong>11.9%</strong> w ciągu ostatnich 6 miesięcy
+            </p>
           </div>
         </div>
       </div>

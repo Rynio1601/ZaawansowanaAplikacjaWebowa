@@ -1,7 +1,8 @@
 import { useEffect } from 'react';
-import { useNavigate } from 'react-router';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { AppLayout } from './AppLayout';
+import { GoogleAnalytics } from './GoogleAnalytics';
 
 export function AuthenticatedLayout() {
   const { user, loading } = useAuth();
@@ -28,5 +29,10 @@ export function AuthenticatedLayout() {
     return null;
   }
 
-  return <AppLayout />;
+  return (
+    <>
+      <GoogleAnalytics />
+      <AppLayout />
+    </>
+  );
 }

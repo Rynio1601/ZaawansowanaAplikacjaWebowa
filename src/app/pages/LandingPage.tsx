@@ -1,10 +1,16 @@
-import { Link } from 'react-router';
+import { Link } from 'react-router-dom';
 import {
   Users, Dumbbell, TrendingUp, CreditCard, BarChart3,
   ArrowRight, Check, Star, ChevronDown, MessageSquare,
   Calendar, Zap, Shield, RefreshCw, X, Play
 } from 'lucide-react';
 import { useState } from 'react';
+import { SeoHead } from '../components/SeoHead';
+import { 
+  trackDemoClick, 
+  trackCTAClick, 
+  trackRegistrationStart 
+} from '../analytics/ga4';
 
 const HERO_IMG = 'https://images.unsplash.com/photo-1750698545009-679820502908?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxwZXJzb25hbCUyMHRyYWluZXIlMjBjbGllbnQlMjBmaXRuZXNzJTIwY29hY2hpbmd8ZW58MXx8fHwxNzcyNjk4ODg5fDA&ixlib=rb-4.1.0&q=80&w=1080';
 const TRAINER_IMG = 'https://images.unsplash.com/photo-1758875568932-0eefd3e60090?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxhdGhsZXRpYyUyMG1hbiUyMHBlcnNvbmFsJTIwdHJhaW5lciUyMHByb2Zlc3Npb25hbHxlbnwxfHx8fDE3NzI2OTg4OTN8MA&ixlib=rb-4.1.0&q=80&w=1080';
@@ -108,12 +114,20 @@ export function LandingPage() {
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center mb-6">
               <Link to="/rejestracja"
+                onClick={() => {
+                  trackCTAClick('Hero Register CTA');
+                  trackRegistrationStart();
+                }}
                 className="flex items-center justify-center gap-2 px-8 py-4 rounded-xl text-white transition-all"
                 style={{ background: 'linear-gradient(135deg, #2563EB, #06B6D4)', fontWeight: 700, fontSize: '1rem', boxShadow: '0 0 40px rgba(37,99,235,0.4)' }}>
                 Rozpocznij darmowy okres próbny
                 <ArrowRight size={18} />
               </Link>
               <Link to="/demo"
+                onClick={() => {
+                  trackCTAClick('Hero Demo CTA');
+                  trackDemoClick();
+                }}
                 className="flex items-center justify-center gap-2 px-8 py-4 rounded-xl transition-all"
                 style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#F1F5F9', fontWeight: 600, fontSize: '1rem' }}>
                 <Play size={16} />
@@ -234,7 +248,16 @@ export function LandingPage() {
                       </li>
                     ))}
                   </ul>
-                  <Link to={path} className="block text-center py-3 rounded-xl text-sm text-white transition-all"
+                  <Link to={path}
+                    onClick={() => {
+                      trackCTAClick(`Persona ${name} CTA`);
+                      if (path === '/rejestracja') {
+                        trackRegistrationStart();
+                      } else if (path === '/demo') {
+                        trackDemoClick();
+                      }
+                    }}
+                    className="block text-center py-3 rounded-xl text-sm text-white transition-all"
                     style={{ background: `${accent}15`, border: `1px solid ${accent}40`, color: accent, fontWeight: 600 }}
                     onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = `${accent}25`; }}
                     onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = `${accent}15`; }}>
@@ -315,7 +338,12 @@ export function LandingPage() {
                     </li>
                   ))}
                 </ul>
-                <Link to="/rejestracja" className="block text-center py-3 rounded-xl text-sm text-white transition-all"
+                <Link to="/rejestracja"
+                  onClick={() => {
+                    trackCTAClick(`Pricing ${name} CTA`);
+                    trackRegistrationStart();
+                  }}
+                  className="block text-center py-3 rounded-xl text-sm text-white transition-all"
                   style={{ background: recommended ? `linear-gradient(135deg, ${color}, #2563EB)` : 'rgba(255,255,255,0.05)', border: recommended ? 'none' : `1px solid rgba(255,255,255,0.1)`, fontWeight: 600 }}>
                   Rozpocznij 14-dniowy trial
                 </Link>
@@ -361,11 +389,21 @@ export function LandingPage() {
               Dołącz do 2400+ trenerów, którzy odzyskali czas, zwiększyli przychody i działają jak prawdziwi profesjonaliści.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Link to="/rejestracja" className="flex items-center justify-center gap-2 px-8 py-4 rounded-xl text-white transition-all"
+              <Link to="/rejestracja"
+                onClick={() => {
+                  trackCTAClick('Final Register CTA');
+                  trackRegistrationStart();
+                }}
+                className="flex items-center justify-center gap-2 px-8 py-4 rounded-xl text-white transition-all"
                 style={{ background: 'linear-gradient(135deg, #2563EB, #06B6D4)', fontWeight: 700, fontSize: '1rem' }}>
                 Rozpocznij 14-dniowy trial <ArrowRight size={18} />
               </Link>
-              <Link to="/demo" className="flex items-center justify-center gap-2 px-8 py-4 rounded-xl transition-all"
+              <Link to="/demo"
+                onClick={() => {
+                  trackCTAClick('Final Demo CTA');
+                  trackDemoClick();
+                }}
+                className="flex items-center justify-center gap-2 px-8 py-4 rounded-xl transition-all"
                 style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#F1F5F9', fontWeight: 600 }}>
                 Zarezerwuj demo
               </Link>

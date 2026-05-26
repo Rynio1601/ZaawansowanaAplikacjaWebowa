@@ -1,6 +1,7 @@
-import { Outlet, Link, useLocation, useNavigate } from 'react-router';
+import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { Menu, X, Zap, ChevronDown } from 'lucide-react';
+import { GoogleAnalytics } from './GoogleAnalytics';
 
 export function LandingLayout() {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -22,6 +23,7 @@ export function LandingLayout() {
 
   return (
     <div className="min-h-screen" style={{ background: '#06080F', color: '#F1F5F9' }}>
+      <GoogleAnalytics />
       {/* Header */}
       <header className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${scrolled ? 'py-3' : 'py-4'}`}
         style={{ background: scrolled ? 'rgba(6,8,15,0.95)' : 'transparent', backdropFilter: 'blur(12px)', borderBottom: scrolled ? '1px solid rgba(255,255,255,0.06)' : 'none' }}>

@@ -1,4 +1,4 @@
-import { createBrowserRouter } from 'react-router';
+import { createBrowserRouter } from 'react-router-dom';
 import { LandingLayout } from './components/LandingLayout';
 import { AuthenticatedLayout } from './components/AuthenticatedLayout';
 import { LandingPage } from './pages/LandingPage';
